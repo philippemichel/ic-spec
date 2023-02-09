@@ -1,0 +1,191 @@
+---
+title: "IC-SPEC"
+subtitle: "Plan d'analyse statistique"
+author: "Philippe MICHEL"
+bibliography: stat.bib
+thanks: "Mme GESSAT, Dr Amine BRIEDJ - Cardiologie Pontoise"
+lang: fr-FR
+date: today
+date-format: "DD/MM/YYYY"
+format: pdf
+pdf-engine: lualatex
+include-in-header: 
+   text: 
+     \usepackage[output-decimal-marker={,}, mode = text]{siunitx}
+     \usepackage{textgreek}
+     \usepackage{marginnote}
+keep-tex: true
+number-sections: true
+toc: false
+lof: false
+lot: false
+mainfont: Faune
+mainfontoptions:
+  - Numbers=OldStyle
+  - Ligatures=TeX
+sansfont: Myriad Pro
+sansfontoptions:
+  - Ligatures=TeX
+mathfontoptions: 
+  - Numbers=Proportional
+fig-cap-location: bottom
+tbl-cap-location: top
+class: scrartcl
+classoption: [french]
+papersize: a4paper
+fontsize: 10 pt
+editor: source
+cite-method: natbib
+license: "CC BY-SA"
+execute: 
+  echo: false
+  warning: false
+  message: false
+---
+
+
+
+Ce document ne concerne que l'analyse statistique des données.
+
+
+```{r}
+#| label: info
+rm(list = ls())
+library("baseph")
+library("tidyverse")
+library("kableExtra")
+library(epiDisplay)
+# sessionInfo()
+```
+
+```{r}
+#| label: nbcas
+dd <- 0.5
+zz  <- n.for.2means(0, dd, 1, 1)
+nn <- floor(zz[[6]] * 1.1)+1
+```
+
+
+Il s'agit d'une étude prospective non interventionnelle mono-centrique. Le risque \textalpha{} retenu est de 0,05 & la puissance de 0,8.
+
+Sauf indication contraire les données numériques seront présentées par leur moyenne & écart-type & comparées par des tests du t de Student si les conditions de normalité & d'égalité des variances sont remplies, sinon présentées par leur médiane avec les quartiles & comparées par des tests de Wilcoxon. Les données catégorielles seront présentées par par le nombre & le pourcentage avec son intervalle de confiance calculé par bootstrap & comparées par des tests du $\chi^2$. Des graphiques pourront être réalisés pour les variables ou tests importants. 
+
+
+
+## Données manquantes
+
+Le décompte des données manquantes sera réalisé & présenté par un tableau ou un graphique. Les dossiers où une des données nécessaires pour l'étude du critère principal (décision médecin & IDE) seront exclus de l'étude. De même les variables comportant trop de données manquantes ou non utilisables ne seront pas prises en compte après validation par le promoteur.
+
+Après ce premier tri une imputation des données manquantes \footnote{package \texttt{missMDA} \cite{miss}} sera réalisée uniquement pour la recherche du meilleur modèle par step-by-tep descendant pour les analyses par régression (logistique ou linéaire). Néanmoins dans ce cas, après choix du modèle, le calcul final sera fait avec les données réelles. 
+
+## Description
+ 
+Les données démographiques ainsi que le bilan à la naissance seront présentés sur un tableau en comparant les deux groupes pour rechercher d'éventuels biais. 
+ 
+Une analyse de corrélations \footnote{package \texttt{correlation} \cite{corr}} portant sur tous les items sera réalisée. À la suite de ces contrôles des variables pourront être exclues de la suite de l'analyse (trop de donnée manquantes ou variables trop corrélées) avec l'accord du promoteur. 
+
+
+## Critère principal
+
+*Évaluation de la concordance, pertinence et sécurité des décisions de l’infirmière en post-hospitalisation d’insuffisance cardiaque.*
+
+La concordance sera évaluée sur la comparaison des décisions prises par le médecin & l'IDE jugée sur 14 items (voir tableau \ref{items}). Trois niveaux seront étudiés (classification faite par le médecin):
+
+- **Concordance** Au moins un item diffère sans que cela représente une différence notable pour le patient;
+- **Pertinence** Il existe au moins une différence pouvant avoir un impact mineur sur le patient;
+- **Sécurité** Il existe au moins une différence pouvant avoir un impact grave sur le patient.
+
+En cs de non concordance le cas sera revu par un second médecin & le médecin promoteur C'est la décision commune de ces deux médecins qui sera prise en compte comme "décision médicale" c'est à dire comme référence. La classification des non-concordance dans les trois strasses sera faite par le promoteur. 
+
+Un calcul de concordance item par item sera d'abord réalisé par un test Kappa-Cohen de Light\footnote{package \texttt{irr} \cite{irr}}. On recherchera des corrélations entre les données brutes de concordance (tableau de corrélation).
+
+Pour chacune des trois strates la concordance sera évaluée par le score de Kappa-Cohen calculé sur l'ensemble des items (non concordance s'il existe une différence sur au moins un item). Un score supérieur à 0,+ pour la *Concordance* & la *Pertinence* sera considéré comme correct. Un score de 0,8 sera exigé pour la *Sécurité*. S'il existe des erreurs classées en niveau *Sécurité* le calcul du nombre de cas nécessaires pour qu'une telle erreur apparaisse sera calculé (calcul identique à un nombre de cas à traiter).
+
+Pour le critère global on recherchera si certains groupes de patients sont plus à risque d'avoir une non concordance. Une analyse monovariée sera réalisée (test etc. décrits plus haut). Une analyse multivariée par régression logistique sera ensuite réalisée en incorporant dans un premier temps toutes les variables ayant une p-value < 0,20 sur l'analyse monovariée. Une recherche du meilleur modèle sera ensuite réalisé par un step-by-step descendant. Pour cette détermination du meilleur modèle de régression logistique on utilisera les données après imputation des données manquantes. Par contre, une fois le modèle retenu, les calculs présentés seront ceux réalisés sur les données réelles.
+
+Si lors de l'étude item par item un item semble particulièrement fragile (nombreuses non concordances)le même protocole sera utilisé pour l'étudier. 
+
+### Nombre de cas
+
+L'item de base du critère principal est un ensemble de décisions thérapeutiques prises par un médecin (Gold Standard) & une IDE (valeur à évaluer). Chaque décision thérapeutique peut être considérée comme un diagnostic ("Augmenter les diurétiques" peut être considéré, grossièrement, comme "diagnostic d'une surcharge hydrique"). 
+
+```{r}
+#| label: calculnb
+
+prop <- 0.5
+ssb <- 0.9
+prec <- 0.05
+erreur <- (1.96^2 * ssb * (1-ssb))/prec^2
+ncas <- erreur/prop
+ncas <-  floor(ncas * 1.1)
+```
+
+
+Pour chacun des items la proportion de cas positifs (où la décision sera prise) sera variable. On prend donc comme base de calcul le cas le moins favorable c'est à dire 50 %. On estime que la qualité des décisions de l'IDE sera correcte si la décion positive est équivalente à celle du médecin (équivalent d'une sensibilité) dans 90 % des cas avec une précision de mesure de 5 %. On obtient un nombre de cas nécessaires de **`r ncas` cas**.
+
+## Critères secondaires
+
+
+### Risque de réhospitalisation et de décès
+
+Ce risque sera évalué sur les six critères suivants : 
+
+- Nombre d’interventions déclenchées 
+Déjà calculé pour le critère principal
+
+- Nombre de décès toute cause et cardiaque,
+- Nombre de réhospitalisation toute cause,
+- Nombre de réhospitalisation pour insuffisance cardiaque, 
+- Nombre de passage aux urgences pour insuffisance cardiaque,
+- Nombre de passage aux urgences pour toute cause.
+
+Pour ces critères le nombre & le % seront donnés. 
+
+### Impact de l’organisation sur l’évolution des patients 
+L'évolution du taux de BNP& du score NYHA seront calculés.
+
+
+
+### Évaluation de la faisabilité du dispositif de suivi des patients
+
+Le taux de non réception du bilan biologique avec les causes identifiées d'erreur seront rapportés.
+
+
+## Données de concordance
+
+Quelques modifications suggérées pour les items de concordance.
+
+\label{items}
+\renewcommand{\arraystretch}{1.5}
+\begin{table}[!h]
+\caption{Actions possibles}
+\label{items}
+\begin{tabular}{ll}
+\toprule
+Actions & Choix possibles\\
+\midrule
+Pas d'action & Oui / Non\\
+Appel téléphonique & Oui / Non\\
+Diurétiques& Majoration / Inchangé/ Diminution/ Arrêt\\
+Apports potassiques& Majoration / Inchangé/ Diminution/ Arrêt\\
+Prescription d'une biologie supplémentaire& Oui / Non\\
+Demande de télésurveillance& Oui / Non\\
+Diminution ou arrêt des IEC/ARAII/ARNI& Oui / Non\\
+Anti aldostérone& Majoration / Inchangé/ Diminution/ Arrêt\\
+Arrêt des ISGLT2& Oui / Non\\
+Diminution ou arrêt des bétabloquants& Oui / Non\\
+Orientation urgences& Oui / Non\\
+Orientation vers le médecin traitant& Oui / Non\\
+Cs semi urgente& Oui / Non\\
+Hospitalisation& Oui / Non\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\suppressfloats
+
+## Technique {.appendix}
+
+L'analyse statistique sera réalisée grâce au logiciel **R** [@rstat]. Outre les packages cités dans le texte, on utilisera en particulier les  packages `baseph` [@baseph] & `tidyverse` [@tidy]. Les graphiques seront prIncipalement réalisés grâce au package `ggplot2` [@ggplot].
+
+Un dépôt Git sera utilisé (<https://github.com/philippemichel/>) qui ne contiendra que le code & un jeu de données réduit & faussé mais aucun résultat. 
